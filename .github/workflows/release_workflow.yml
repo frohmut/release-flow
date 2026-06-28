@@ -20,6 +20,15 @@ jobs:
           echo "Releases can only be triggered from the 'main' branch!"
           exit 1
 
+
+      - name: Validate Version Framework
+        # This native if: statement checks that it starts with 'v' and contains '-rc'
+        if: ${{ !startsWith(github.event.inputs.version, 'v') || !contains(github.event.inputs.version, '-rc') }}
+        run: |
+          echo "::error title=Invalid Format::Your version string MUST start with 'v' and contain '-rc'!"
+          echo "::notice::Expected format example: v1.4.0-rc2"
+          exit 1
+
       - name: Create GitHub Release
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
