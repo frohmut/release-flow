@@ -1,9 +1,14 @@
 = Release flow
 
-== CI
+== CI/CD main
 
 - CI is triggered by a PR.
 - Editing "main" is not allowed.
 - feature/ branches are deleted after a PR
 - with the merge of a PR, the deployment to INT is triggered
 - merge commit shows how was responible
+
+== CI/CD for UAT
+
+- UATPRE: CI/CD like INT, but target env is UATPRE
+- UAT: deployment triggered by tag creation v*.*.*-rc*
