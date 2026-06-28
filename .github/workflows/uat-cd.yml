@@ -1,0 +1,21 @@
+name: CD - Deploy to UATPRE
+
+on:
+  push:
+    branches:
+      - "release/*"
+
+jobs:
+  deploy-uatpre:
+    runs-on: ubuntu-latest
+
+    environment:
+      name: uatpre
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v5
+
+      - name: Deploy to UATPRE
+        run: |
+          echo "Deploying $GITHUB_REF_NAME to UATPRE"
