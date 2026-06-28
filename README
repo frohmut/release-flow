@@ -2,4 +2,5 @@
 
 == CI
 
-CI is triggered by a PR
+CI is triggered by a PR.
+Editing "main" is not allowed.
