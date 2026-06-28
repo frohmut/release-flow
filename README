@@ -2,5 +2,7 @@
 
 == CI
 
-CI is triggered by a PR.
-Editing "main" is not allowed.
+- CI is triggered by a PR.
+- Editing "main" is not allowed.
+- feature/ branches are deleted after a PR
+- with the merge of a PR, the deployment to INT is triggered
