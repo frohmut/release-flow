@@ -1,0 +1,77 @@
+name: Production Release via Dispatch
+
+on:
+  workflow_dispatch:
+    inputs:
+      tag_name:
+        description: 'Tag-Name (z.B. v1.2.3)'
+        required: true
+        type: string
+
+jobs:
+  deploy_and_tag:
+    runs-on: ubuntu-latest
+    environment: production
+    
+    permissions:
+      contents: write
+
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v5
+        with:
+          fetch-depth: 0
+
+      # Nativer API-Call gegen GitHub, um den Approver und den Kommentar zu holen
+      - name: Fetch Approval Information via GitHub API
+        id: get_approval
+        run: |
+          # Wir fragen die Reviews für diesen spezifischen Workflow-Run ab
+          API_URL="${{ github.api_url }}/repos/${{ github.repository }}/actions/runs/${{ github.run_id }}/approvals"
+          
+          # API-Abfrage mit dem eingebauten GITHUB_TOKEN
+          RESPONSE=$(curl -s -H "Authorization: Bearer ${{ secrets.GITHUB_TOKEN }}" \
+                             -H "Accept: application/vnd.github+json" \
+                             $API_URL)
+          
+          # Extrahieren des letzten Approvers und dessen Kommentars mittels jq
+          APPROVER=$(echo "$RESPONSE" | jq -r '.[-1].user.login // "Unbekannt"')
+          COMMENT=$(echo "$RESPONSE" | jq -r '.[-1].comment // "Kein Kommentar hinterlassen"')
+          
+          # Maskieren für GitHub Actions Outputs (verhindert Probleme mit Zeilenumbrüchen)
+          echo "approver=$APPROVER" >> $GITHUB_OUTPUT
+          echo "comment=$COMMENT" >> $GITHUB_OUTPUT
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Create Annotated Tag and Publish Release
+        run: |
+          git config --global user.name "github-actions[bot]"
+          git config --global user.email "github-actions[bot]@://github.com"
+          
+          TAG_NAME="${{ inputs.tag_name }}"
+          DATE_TIME=$(date -u +"%Y-%m-%d %H:%M:%S UTC")
+          
+          APPROVER="${{ steps.get_approval.outputs.approver }}"
+          COMMENT="${{ steps.get_approval.outputs.comment }}"
+          
+          # Tag-Nachricht ohne externe Abhängigkeiten bauen
+          cat <<EOF > tag_message.txt
+          Release Version: $TAG_NAME
+          Angestoßen von: ${{ github.actor }}
+          
+          --- APPROVAL INFO ---
+          Freigegeben am: $DATE_TIME
+          Genehmigt von: $APPROVER
+          Kommentar: "$COMMENT"
+          EOF
+          
+          # Tag lokal annotieren und pushen
+          git tag -a $TAG_NAME -F tag_message.txt
+          git push origin $TAG_NAME
+
+          # Das offizielle GitHub Release via GitHub CLI (gh) erstellen
+          # Benutzt das offizielle Tool von GitHub selbst
+          echo and now do the deployment
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
