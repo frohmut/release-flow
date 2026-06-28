@@ -1,0 +1,105 @@
+name: Production & UAT Release via Dispatch
+
+on:
+  workflow_dispatch:
+    inputs:
+      tag_name:
+        description: 'Tag-Name (z.B. v1.2.3 oder v1.2.3-rc1)'
+        required: true
+        type: string
+
+jobs:
+  deploy_uat:
+    runs-on: ubuntu-latest
+    environment: uat
+    permissions:
+      contents: write
+    if: contains(inputs.tag_name, '-rc')
+
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+
+
+      - name: Create and Push Annotated Tag (UAT)
+        run: |
+          git config --global user.name "github-actions[bot]"
+          git config --global user.email "github-actions[bot]@://github.com"
+          
+          TAG_NAME="${{ inputs.tag_name }}"
+          DATE_TIME=$(date -u +"%Y-%m-%d %H:%M:%S UTC")
+          
+          cat <<EOF > tag_message.txt
+          Release Version: $TAG_NAME (UAT Pre-Release)
+          By: ${{ github.actor }}
+          At: $DATE_TIME
+          
+          --- INFO ---
+          RC for UAT, not approval necessary
+          EOF
+          
+          git tag -a $TAG_NAME -F tag_message.txt
+          git push origin $TAG_NAME
+
+      - name: Release (UAT Draft/Pre-release)
+        run: |
+          echo deploy based on tag ${{ inputs.tag_name }}
+
+  # ==========================================
+  # JOB 2: PRODUCTION DEPLOYMENT (Für finale Releases ohne "-rc")
+  # ==========================================
+  deploy_production:
+    runs-on: ubuntu-latest
+    environment: production
+    permissions:
+      contents: write
+    if: "!contains(inputs.tag_name, '-rc')"
+
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+
+      - name: Fetch Approval Information via GitHub API
+        id: get_approval
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          API_URL="${{ github.api_url }}/repos/${{ github.repository }}/actions/runs/${{ github.run_id }}/approvals"
+          RESPONSE=$(curl -s -H "Authorization: Bearer $GITHUB_TOKEN" \
+                             -H "Accept: application/vnd.github+json" \
+                             $API_URL)
+          
+          APPROVER=$(echo "$RESPONSE" | jq -r '.[-1].user.login // "Unbekannt"')
+          COMMENT=$(echo "$RESPONSE" | jq -r '.[-1].comment // "Kein Kommentar hinterlassen"')
+          
+          echo "approver=$APPROVER" >> $GITHUB_OUTPUT
+          echo "comment=$COMMENT" >> $GITHUB_OUTPUT
+
+
+      - name: Create and Push Annotated Tag (Production)
+        run: |
+          git config --global user.name "github-actions[bot]"
+          git config --global user.email "github-actions[bot]@://github.com"
+          
+          TAG_NAME="${{ inputs.tag_name }}"
+          DATE_TIME=$(date -u +"%Y-%m-%d %H:%M:%S UTC")
+          
+          cat <<EOF > tag_message.txt
+          Release Version: $TAG_NAME
+          By: ${{ github.actor }}
+          
+          --- APPROVAL INFO ---
+          Approval time: $DATE_TIME
+          Approval by: ${{ steps.get_approval.outputs.approver }}
+          Approval comment: "${{ steps.get_approval.outputs.comment }}"
+          EOF
+          
+          git tag -a $TAG_NAME -F tag_message.txt
+          git push origin $TAG_NAME
+
+      - name: Publish Official GitHub Release (Production)
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          echo prod release from ${{ inputs.tag_name }}
+            
