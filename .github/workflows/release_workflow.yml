@@ -1,0 +1,27 @@
+name: Create Production Release
+
+on:
+  workflow_dispatch:
+    inputs:
+      version:
+        description: 'Version tag (e.g., v1.2.3)'
+        required: true
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+
+      - name: Check if running on allowed branch
+        if: github.ref_name != 'main'  # <-- Hard restriction
+        run: |
+          echo "Releases can only be triggered from the 'main' branch!"
+          exit 1
+
+      - name: Create GitHub Release
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          echo do create
