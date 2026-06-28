@@ -1,1 +1,5 @@
 = Release flow
+
+== CI
+
+CI is triggered by a PR
