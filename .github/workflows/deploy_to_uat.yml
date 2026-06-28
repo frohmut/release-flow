@@ -1,0 +1,49 @@
+name: 🚀 Deploy Release Candidate to UAT
+
+on:
+  push:
+    tags:
+      # This regex-like pattern ensures it ONLY triggers when your PO
+      # creates a tag matching your exact UAT naming format (e.g., v1.4.0-rc1)
+      - 'v[0-9]+.[0-9]+.[0-9]+-rc*'
+
+# Prevent multiple deployments from clashing if your PO cuts tags quickly.
+# This forces GitHub to queue deployments sequentially.
+concurrency:
+  group: uat-deployment
+  cancel-in-progress: false
+
+jobs:
+  build-and-deploy:
+    name: 🏗️ UAT Cloud Build & Deploy
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: ⬇️ Checkout Code
+        uses: actions/checkout@v5
+
+
+      - name: 🔍 Extract Version Metadata
+        run: |
+          # github.ref_name contains just the tag string (e.g., "v1.4.0-rc1")
+          echo "Target Release Candidate: ${{ github.ref_name }}"
+          echo "Associated Commit SHA: ${{ github.sha }}"
+
+      # ------------------------------------------------------------------
+      # INSERT YOUR CLOUD DEPLOYMENT STEPS BELOW
+      # Example placeholder steps for a standard cloud-native environment:
+      # ------------------------------------------------------------------
+      
+      - name: 🛠️ Build Application Artifacts
+        run: |
+          echo "Building production-ready assets for version ${{ github.ref_name }}..."
+          # e.g., npm run build, docker build, dotnet publish, etc.
+
+      - name: ☁️ Deploy to Cloud Servers
+        run: |
+          echo "Shipping ${{ github.ref_name }} to the UAT cloud environment..."
+          # e.g., aws s3 sync, gcloud app deploy, azure webapp deploy, etc.
+          
+      - name: ✅ Deployment Summary
+        run: |
+          echo "Successfully deployed ${{ github.ref_name }} to UAT!"
