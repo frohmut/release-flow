@@ -1,0 +1,22 @@
+name: Deploy INT
+
+on:
+  push:
+    branches:
+      - main
+
+jobs:
+  deploy-int:
+    runs-on: ubuntu-latest
+
+    environment:
+      name: int
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Build
+        run: echo "Build application"
+
+      - name: Deploy to INT
+        run: echo "Deploying to INT"
