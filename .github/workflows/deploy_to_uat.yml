@@ -1,49 +1,47 @@
-name: 🚀 Deploy Release Candidate to UAT
+name: 🚀 Cloud Deployment Pipeline
 
 on:
   push:
     tags:
-      # This regex-like pattern ensures it ONLY triggers when your PO
-      # creates a tag matching your exact UAT naming format (e.g., v1.4.0-rc1)
-      - 'v[0-9]+.[0-9]+.[0-9]+-rc*'
-
-# Prevent multiple deployments from clashing if your PO cuts tags quickly.
-# This forces GitHub to queue deployments sequentially.
-concurrency:
-  group: uat-deployment
-  cancel-in-progress: false
+      - 'v*' # Wakes up for any version tag starting with v
 
 jobs:
-  build-and-deploy:
-    name: 🏗️ UAT Cloud Build & Deploy
+  # -------------------------------------------------------------
+  # JOB 1: UAT DEPLOYMENT (Instant, No Approvals Required)
+  # -------------------------------------------------------------
+  deploy_to_uat:
+    name: 🧪 Deploy to UAT
+    # This job ONLY runs if the tag contains "-rc"
+    if: contains(github.ref_name, '-rc')
     runs-on: ubuntu-latest
+    environment: uat # Points to your standard UAT environment
 
     steps:
       - name: ⬇️ Checkout Code
-        uses: actions/checkout@v5
+        uses: actions/checkout@v4
 
+      - name: ☁️ Ship to UAT Cloud
+        run: |
+          echo "Deploying Release Candidate ${{ github.ref_name }} straight to UAT..."
+          # Insert your actual UAT cloud deployment commands here
 
-      - name: 🔍 Extract Version Metadata
-        run: |
-          # github.ref_name contains just the tag string (e.g., "v1.4.0-rc1")
-          echo "Target Release Candidate: ${{ github.ref_name }}"
-          echo "Associated Commit SHA: ${{ github.sha }}"
+  # -------------------------------------------------------------
+  # JOB 2: PRODUCTION DEPLOYMENT (Hard Locked with Approval Gate)
+  # -------------------------------------------------------------
+  deploy_to_production:
+    name: 💰 Deploy to Production
+    # This job ONLY runs if the tag DOES NOT contain "-rc"
+    if: ${{ !contains(github.ref_name, '-rc') }}
+    runs-on: ubuntu-latest
+    # CRITICAL: Hardcoded string so GitHub instantly reads it 
+    # and locks the job until the Release Manager approves!
+    environment: prd 
 
-      # ------------------------------------------------------------------
-      # INSERT YOUR CLOUD DEPLOYMENT STEPS BELOW
-      # Example placeholder steps for a standard cloud-native environment:
-      # ------------------------------------------------------------------
-      
-      - name: 🛠️ Build Application Artifacts
-        run: |
-          echo "Building production-ready assets for version ${{ github.ref_name }}..."
-          # e.g., npm run build, docker build, dotnet publish, etc.
+    steps:
+      - name: ⬇️ Checkout Code
+        uses: actions/checkout@v4
 
-      - name: ☁️ Deploy to Cloud Servers
+      - name: ☁️ Ship to Live Production Cloud
         run: |
-          echo "Shipping ${{ github.ref_name }} to the UAT cloud environment..."
-          # e.g., aws s3 sync, gcloud app deploy, azure webapp deploy, etc.
-          
-      - name: ✅ Deployment Summary
-        run: |
-          echo "Successfully deployed ${{ github.ref_name }} to UAT!"
+          echo "Deploying FINAL VERSION ${{ github.ref_name }} to live production servers!"
+          # Insert your actual Production cloud deployment commands here
